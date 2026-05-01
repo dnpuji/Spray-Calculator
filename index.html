@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Spray Calculator</title>
+    <meta name="description" content="Calculate water and chemical requirements for agricultural spraying.">
+    <meta name="theme-color" content="#10b981">
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="style.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Supabase CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div id="app" class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-content">
+                <h1>Spray Calc</h1>
+                <div class="network-status" id="network-status">
+                    <span class="status-dot online"></span>
+                    <span class="status-text">Online</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            <!-- View: Application (Area Calculator) -->
+            <section id="view-calc-area" class="view active-view">
+                <div class="card glass-card">
+                    <h2>Application Calculator</h2>
+                    <p class="subtitle">Calculate requirements based on land area</p>
+                    
+                    <div class="form-group">
+                        <label for="area-activity">Select Activity</label>
+                        <select id="area-activity" class="input-modern">
+                            <option value="">Select an activity...</option>
+                            <!-- Options injected by JS -->
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="area-input">Land Area (Hectares)</label>
+                        <input type="number" id="area-input" class="input-modern" placeholder="e.g. 2.5" step="0.01" min="0">
+                    </div>
+
+                    <button id="btn-calc-area" class="btn btn-primary">Calculate</button>
+
+                    <div class="result-container" id="area-result-container" style="display: none;">
+                        <div class="result-box water-box" style="grid-column: 1 / -1;">
+                            <span class="result-label">Total Water Needed</span>
+                            <span class="result-value" id="area-result-water">0 L</span>
+                        </div>
+                        <div id="area-chemicals-list" style="grid-column: 1 / -1; display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
+                            <!-- Chemical results injected here -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Custom Calculator (Ratio) -->
+            <section id="view-calc-custom" class="view">
+                <div class="card glass-card">
+                    <h2>Custom Calculator</h2>
+                    <p class="subtitle">Calculate additions based on dose and water rate</p>
+                    
+                    <div class="form-row">
+                        <div class="form-group half">
+                            <label for="custom-dose">Dose / Ha</label>
+                            <div class="input-group">
+                                <input type="number" id="custom-dose" class="input-modern" placeholder="e.g. 1" step="0.1" min="0">
+                                <select id="custom-dose-unit" class="input-modern unit-select">
+                                    <option value="L">L</option>
+                                    <option value="mL">mL</option>
+                                    <option value="g">g</option>
+                                    <option value="kg">kg</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-group half">
+                            <label for="custom-water-rate">Water Rate / Ha (L)</label>
+                            <input type="number" id="custom-water-rate" class="input-modern" placeholder="e.g. 400" step="1" min="0">
+                        </div>
+                    </div>
+
+                    <div class="tabs-internal">
+                        <button class="tab-btn active" data-target="custom-mode-water">I have Water</button>
+                        <button class="tab-btn" data-target="custom-mode-chem">I have Chemical</button>
+                    </div>
+
+                    <div id="custom-mode-water" class="custom-mode-panel active">
+                        <div class="form-group">
+                            <label for="custom-water-input">Water Volume (L)</label>
+                            <input type="number" id="custom-water-input" class="input-modern" placeholder="How much water do you have?">
+                        </div>
+                        <button id="btn-calc-custom-water" class="btn btn-primary">Calculate Chemical</button>
+                    </div>
+
+                    <div id="custom-mode-chem" class="custom-mode-panel" style="display: none;">
+                        <div class="form-group">
+                            <label for="custom-chem-input">Chemical Volume</label>
+                            <div class="input-group">
+                                <input type="number" id="custom-chem-input" class="input-modern" placeholder="How much chemical?">
+                                <span class="input-suffix" id="custom-chem-suffix">L</span>
+                            </div>
+                        </div>
+                        <button id="btn-calc-custom-chem" class="btn btn-primary">Calculate Water</button>
+                    </div>
+
+                    <div class="result-container" id="custom-result-container" style="display: none;">
+                        <div class="result-box highlight-box">
+                            <span class="result-label" id="custom-result-label">You need to add</span>
+                            <span class="result-value" id="custom-result-value">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Master Data -->
+            <section id="view-master-data" class="view">
+                <div class="card glass-card" id="master-data-auth-card">
+                    <h2>Authentication Required</h2>
+                    <p class="subtitle">Please enter password to manage Master Data</p>
+                    
+                    <div id="auth-section" class="form-group">
+                        <label for="auth-password">Admin Password</label>
+                        <div class="input-group">
+                            <input type="password" id="auth-password" class="input-modern" placeholder="Enter password...">
+                            <button id="btn-auth-verify" class="btn btn-primary" style="width: auto;">Unlock</button>
+                        </div>
+                        <p id="auth-error" style="color: var(--error); display: none; margin-top: 8px; font-size: 0.9rem;">Incorrect password!</p>
+                    </div>
+                </div>
+
+                <!-- Master Data List -->
+                <div class="card glass-card" id="master-data-list-card" style="display: none;">
+                    <div class="activity-header" style="background: transparent; border: none; padding: 0 0 16px 0; margin-bottom: 16px;">
+                        <div>
+                            <h2>Master Data</h2>
+                            <p class="subtitle" style="margin-bottom: 0;">Manage products and rates</p>
+                        </div>
+                        <button id="btn-show-add-product" class="btn-small-icon" style="background: rgba(255,255,255,0.1); width: 40px; height: 40px; border-radius: 50%;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                        </button>
+                    </div>
+
+                    <div class="search-box">
+                        <input type="text" id="master-search" class="input-modern" placeholder="Search activities or products...">
+                    </div>
+
+                    <div id="product-list" class="product-list">
+                        <!-- Products injected here -->
+                    </div>
+                </div>
+
+                <!-- Add/Edit Form -->
+                <div class="card glass-card" id="master-data-form-card" style="display: none;">
+                    <div class="activity-header" style="background: transparent; border: none; padding: 0 0 16px 0; margin-bottom: 16px;">
+                        <h2 id="form-title">Manage Activity</h2>
+                        <button id="btn-cancel-add-product" class="btn-small-icon danger" style="background: rgba(239, 68, 68, 0.1); width: 36px; height: 36px; border-radius: 50%;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+
+                    <form id="add-product-form" class="fade-in">
+                        <input type="hidden" id="original-activity-name">
+                        
+                        <div class="form-row" style="background: rgba(255,255,255,0.02); padding: 16px; border-radius: var(--radius-md); border: 1px solid rgba(255,255,255,0.05); margin-bottom: 24px;">
+                            <div class="form-group half">
+                                <label for="prod-activity">Activity Name *</label>
+                                <input type="text" id="prod-activity" class="input-modern" placeholder="e.g. Kegiatan Umum" list="activity-list" required>
+                                <datalist id="activity-list"></datalist>
+                            </div>
+                            <div class="form-group half">
+                                <label for="prod-water">Water Rate / Ha (L) *</label>
+                                <input type="number" id="prod-water" class="input-modern" required step="1" min="0">
+                            </div>
+                        </div>
+
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                            <h3 style="font-size: 1.1rem; color: var(--text-main);">Products / Ingredients</h3>
+                        </div>
+
+                        <div id="products-container" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px;">
+                            <!-- Dynamic rows injected here -->
+                        </div>
+
+                        <button type="button" id="btn-add-product-row" class="btn" style="background: rgba(255,255,255,0.05); color: var(--text-main); border: 1px dashed rgba(255,255,255,0.2); width: 100%; margin-bottom: 24px;">
+                            + Add Another Product
+                        </button>
+
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Activity</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-target="view-calc-area">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3h18v18H3z"></path><path d="M3 9h18"></path><path d="M9 21V9"></path></svg>
+                <span>Area</span>
+            </button>
+            <button class="nav-btn" data-target="view-calc-custom">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><rect x="9" y="9" width="6" height="6"></rect><line x1="9" y1="1" x2="9" y2="4"></line><line x1="15" y1="1" x2="15" y2="4"></line><line x1="9" y1="20" x2="9" y2="23"></line><line x1="15" y1="20" x2="15" y2="23"></line><line x1="20" y1="9" x2="23" y2="9"></line><line x1="20" y1="14" x2="23" y2="14"></line><line x1="1" y1="9" x2="4" y2="9"></line><line x1="1" y1="14" x2="4" y2="14"></line></svg>
+                <span>Custom</span>
+            </button>
+            <button class="nav-btn" data-target="view-master-data">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                <span>Data</span>
+            </button>
+        </nav>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">Message</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
